@@ -55,22 +55,66 @@
     const title = params.get("title")?.replace(/[^a-zA-Z0-9 \-]/g, "");
     if (title) document.title = title;
 
+    function isLandscape() {
+      // Method 1: Use Screen Orientation API if available
+      if (screen.orientation) {
+        const orientation = screen.orientation.angle;
+        console.log("Screen orientation angle:", orientation);
+        return orientation === 90 || orientation === -90 || orientation === 270;
+      }
+      
+      // Method 2: Use orientation property if available
+      if (window.orientation !== undefined) {
+        console.log("Window orientation:", window.orientation);
+        return Math.abs(window.orientation) === 90;
+      }
+      
+      // Method 3: Fallback to dimension comparison with buffer
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+      const ratio = width / height;
+      console.log("Dimensions:", width, "x", height, "Ratio:", ratio.toFixed(2));
+      
+      // Use a ratio threshold instead of simple comparison to account for UI elements
+      return ratio > 1.2;
+    }
+
     function updateLayout() {
       const icon = document.getElementById("icon");
       const message = document.getElementById("message");
-      if (window.innerWidth > window.innerHeight) {
+      
+      console.log("Updating layout...");
+      
+      if (isLandscape()) {
         icon.textContent = "✅";
         icon.classList.add("green");
         message.textContent = "You're in landscape mode! Scroll down to view the viz.";
+        console.log("Detected: Landscape mode");
       } else {
         icon.textContent = "↻";
         icon.classList.remove("green");
         message.textContent = "Please rotate your phone to landscape.";
+        console.log("Detected: Portrait mode");
       }
     }
 
-    window.addEventListener("resize", updateLayout);
-    updateLayout();
+    function handleOrientationChange() {
+      console.log("Orientation change detected");
+      // Add a small delay to ensure dimensions are updated
+      setTimeout(updateLayout, 100);
+    }
+
+    // Add multiple event listeners for better compatibility
+    window.addEventListener("resize", handleOrientationChange);
+    window.addEventListener("orientationchange", handleOrientationChange);
+    
+    // Also listen for screen orientation changes if supported
+    if (screen.orientation) {
+      screen.orientation.addEventListener("change", handleOrientationChange);
+    }
+
+    // Initial layout update with a small delay to ensure proper initialization
+    setTimeout(updateLayout, 100);
   </script>
 </body>
 </html>
