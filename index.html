@@ -56,27 +56,52 @@
     if (title) document.title = title;
 
     function isLandscape() {
-      // Method 1: Use Screen Orientation API if available
+      // Check if we're in an iframe
+      const inIframe = window !== window.top;
+      console.log("In iframe:", inIframe);
+      
+      // Method 1: Try parent window orientation if in iframe
+      if (inIframe) {
+        try {
+          // Try to access parent window orientation (may fail due to cross-origin)
+          if (window.top.screen && window.top.screen.orientation) {
+            const orientation = window.top.screen.orientation.angle;
+            console.log("Parent screen orientation angle:", orientation);
+            return orientation === 90 || orientation === -90 || orientation === 270;
+          }
+          if (window.top.orientation !== undefined) {
+            console.log("Parent window orientation:", window.top.orientation);
+            return Math.abs(window.top.orientation) === 90;
+          }
+        } catch (e) {
+          console.log("Cannot access parent window orientation (cross-origin):", e.message);
+        }
+      }
+      
+      // Method 2: Use Screen Orientation API if available
       if (screen.orientation) {
         const orientation = screen.orientation.angle;
         console.log("Screen orientation angle:", orientation);
         return orientation === 90 || orientation === -90 || orientation === 270;
       }
       
-      // Method 2: Use orientation property if available
+      // Method 3: Use orientation property if available
       if (window.orientation !== undefined) {
         console.log("Window orientation:", window.orientation);
         return Math.abs(window.orientation) === 90;
       }
       
-      // Method 3: Fallback to dimension comparison with buffer
+      // Method 4: Fallback to dimension comparison with different thresholds for iframe
       const width = window.innerWidth;
       const height = window.innerHeight;
       const ratio = width / height;
       console.log("Dimensions:", width, "x", height, "Ratio:", ratio.toFixed(2));
       
-      // Use a ratio threshold instead of simple comparison to account for UI elements
-      return ratio > 1.2;
+      // Use different thresholds for iframe vs standalone
+      const threshold = inIframe ? 1.1 : 1.2;
+      console.log("Using threshold:", threshold);
+      
+      return ratio > threshold;
     }
 
     function updateLayout() {
@@ -111,6 +136,24 @@
     // Also listen for screen orientation changes if supported
     if (screen.orientation) {
       screen.orientation.addEventListener("change", handleOrientationChange);
+    }
+
+    // Listen for messages from parent window (for iframe communication)
+    window.addEventListener("message", function(event) {
+      console.log("Received message:", event.data);
+      if (event.data && (event.data.type === "orientationchange" || event.data.orientation)) {
+        console.log("Parent window orientation change detected");
+        handleOrientationChange();
+      }
+    });
+
+    // Try to request orientation updates from parent if in iframe
+    if (window !== window.top) {
+      try {
+        window.top.postMessage({type: "requestOrientationUpdates"}, "*");
+      } catch (e) {
+        console.log("Cannot communicate with parent window:", e.message);
+      }
     }
 
     // Initial layout update with a small delay to ensure proper initialization
