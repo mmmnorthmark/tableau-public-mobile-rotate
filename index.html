@@ -37,6 +37,24 @@
       color: #0073b1;
       text-decoration: none;
     }
+    .reload-button {
+      margin-top: 20px;
+      padding: 12px 24px;
+      background-color: #0073b1;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      cursor: pointer;
+      display: none;
+      transition: background-color 0.3s ease;
+    }
+    .reload-button:hover {
+      background-color: #005a8b;
+    }
+    .reload-button:active {
+      background-color: #004a73;
+    }
   </style>
 </head>
 <body>
@@ -46,14 +64,72 @@
   <div id="message" class="message">
     Please rotate your phone to landscape.
   </div>
+  <button id="reloadButton" class="reload-button" onclick="reloadParentWithParameter()">
+    Optimize for landscape view
+  </button>
   <div class="branding">
     Created by <a href="https://linkedin.com/in/matthewmarkmiller" target="_blank">Matthew Mark Miller</a>
   </div>
 
   <script>
+    // Configuration for parent page parameter
+    const CONFIG = {
+      parameterName: 'landscapeMode', // Configurable parameter name
+      parameterValue: 'true',         // Value to set when in landscape
+      buttonText: 'Optimize for landscape view' // Button text
+    };
+
     const params = new URLSearchParams(window.location.search);
     const title = params.get("title")?.replace(/[^a-zA-Z0-9 \-]/g, "");
     if (title) document.title = title;
+
+    // Function to construct parent URL with intelligent query string handling
+    function buildParentUrlWithParameter() {
+      try {
+        // Get parent URL from referrer (works in cross-origin iframes)
+        const parentUrl = document.referrer || window.location.href;
+        
+        if (!parentUrl) {
+          console.log('No parent URL available');
+          return null;
+        }
+
+        // Parse the parent URL
+        const url = new URL(parentUrl);
+        
+        // Add or update our parameter
+        url.searchParams.set(CONFIG.parameterName, CONFIG.parameterValue);
+        
+        console.log('Original parent URL:', parentUrl);
+        console.log('Modified URL:', url.toString());
+        
+        return url.toString();
+      } catch (error) {
+        console.error('Error building parent URL:', error);
+        return null;
+      }
+    }
+
+    // Function to reload parent page with parameter
+    function reloadParentWithParameter() {
+      const newUrl = buildParentUrlWithParameter();
+      if (newUrl) {
+        try {
+          // Try to reload parent window
+          if (window.top && window.top !== window) {
+            window.top.location.href = newUrl;
+          } else {
+            // Fallback: open in current window
+            window.location.href = newUrl;
+          }
+        } catch (error) {
+          console.error('Cannot reload parent, opening in new window:', error);
+          window.open(newUrl, '_top');
+        }
+      } else {
+        console.error('Could not construct parent URL');
+      }
+    }
 
     function isLandscape() {
       // Check if we're in an iframe
@@ -107,6 +183,8 @@
     function updateLayout() {
       const icon = document.getElementById("icon");
       const message = document.getElementById("message");
+      const reloadButton = document.getElementById("reloadButton");
+      const inIframe = window !== window.top;
       
       console.log("Updating layout...");
       
@@ -114,11 +192,27 @@
         icon.textContent = "✅";
         icon.classList.add("green");
         message.textContent = "You're in landscape mode! Scroll down to view the viz.";
+        
+        // Show reload button in landscape mode
+        // In production: only show if in iframe, but for testing show always in landscape
+        if (inIframe && (document.referrer || window.location.href)) {
+          // Production: iframe with parent URL
+          reloadButton.textContent = CONFIG.buttonText;
+          reloadButton.style.display = "inline-block";
+        } else if (!inIframe) {
+          // Testing: show button even when not in iframe for demonstration
+          reloadButton.textContent = CONFIG.buttonText + " (Demo - not in iframe)";
+          reloadButton.style.display = "inline-block";
+        } else {
+          reloadButton.style.display = "none";
+        }
+        
         console.log("Detected: Landscape mode");
       } else {
         icon.textContent = "↻";
         icon.classList.remove("green");
         message.textContent = "Please rotate your phone to landscape.";
+        reloadButton.style.display = "none";
         console.log("Detected: Portrait mode");
       }
     }
